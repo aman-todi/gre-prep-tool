@@ -1,0 +1,706 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Verbal Reps</title>
+<style>
+  :root{
+    --bg:#eef1f2;
+    --surface:#ffffff;
+    --surface-raised:#ffffff;
+    --ink:#151b23;
+    --ink-soft:#54626f;
+    --ink-faint:#8793a0;
+    --line:#dbe1e5;
+    --accent:#b3791f;
+    --accent-ink:#3a2a0c;
+    --accent-soft:#f3e3c4;
+    --good:#25795c;
+    --good-soft:#dcf0e6;
+    --bad:#a83c34;
+    --bad-soft:#f6ded9;
+    --shadow: 0 1px 2px rgba(21,27,35,.06), 0 8px 24px -12px rgba(21,27,35,.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#10151c;
+      --surface:#182029;
+      --surface-raised:#1e2733;
+      --ink:#e9edf1;
+      --ink-soft:#a3b0bc;
+      --ink-faint:#6c7885;
+      --line:#2b3543;
+      --accent:#e0a63d;
+      --accent-ink:#2a1f09;
+      --accent-soft:#3a2e14;
+      --good:#59c79a;
+      --good-soft:#183527;
+      --bad:#e2766c;
+      --bad-soft:#3a2320;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10151c;
+    --surface:#182029;
+    --surface-raised:#1e2733;
+    --ink:#e9edf1;
+    --ink-soft:#a3b0bc;
+    --ink-faint:#6c7885;
+    --line:#2b3543;
+    --accent:#e0a63d;
+    --accent-ink:#2a1f09;
+    --accent-soft:#3a2e14;
+    --good:#59c79a;
+    --good-soft:#183527;
+    --bad:#e2766c;
+    --bad-soft:#3a2320;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Work Sans', system-ui, -apple-system, sans-serif;
+    padding-inline:16px;
+    padding-block:20px;
+  }
+  .wrap{ max-width:640px; margin:0 auto; }
+
+  h1,h2,h3{ font-family:'Newsreader', Georgia, serif; text-wrap:balance; margin:0; }
+  .mono{ font-family:'IBM Plex Mono', ui-monospace, monospace; }
+
+  /* ---------- Header ---------- */
+  .topbar{
+    position:sticky; top:env(safe-area-inset-top, 0px);
+    z-index:5;
+    background:var(--bg);
+    padding-block:10px 14px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:18px;
+  }
+  .brand{ display:flex; flex-direction:column; gap:2px; }
+  .brand .name{ font-size:1.3rem; font-weight:600; letter-spacing:-.01em; }
+  .brand .tag{ font-size:.72rem; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.08em; }
+  .stats{ display:flex; gap:14px; align-items:center; }
+  .stat{ text-align:right; }
+  .stat .n{ font-family:'IBM Plex Mono', monospace; font-size:1.05rem; font-variant-numeric: tabular-nums; color:var(--accent); font-weight:500; }
+  .stat .l{ font-size:.66rem; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.07em; }
+
+  /* ---------- Progress ---------- */
+  .progress-row{ display:flex; gap:5px; margin-bottom:18px; flex-wrap:wrap; }
+  .progress-dot{
+    flex:1 1 0; min-width:10px; height:6px; border-radius:3px;
+    background:var(--line);
+    transition: background .25s ease;
+  }
+  .progress-dot.done{ background:var(--good); }
+  .progress-dot.miss{ background:var(--bad); }
+  .progress-dot.current{ background:var(--accent); }
+
+  /* ---------- Cards ---------- */
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px;
+    box-shadow:var(--shadow);
+  }
+  .tag-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .type-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--accent-ink); background:var(--accent-soft);
+    padding:3px 9px; border-radius:100px; font-weight:500;
+  }
+  .item-index{ font-size:.75rem; color:var(--ink-faint); font-family:'IBM Plex Mono', monospace; }
+
+  .passage{
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.02rem; line-height:1.6;
+    color:var(--ink);
+    background:var(--surface-raised);
+    border-left:3px solid var(--line);
+    padding:14px 16px;
+    border-radius:4px;
+    margin-bottom:16px;
+  }
+  .prompt{
+    font-family:'Newsreader', Georgia, serif;
+    font-size:1.16rem; line-height:1.55;
+    margin-bottom:6px;
+  }
+  .question-line{ font-size:1.02rem; line-height:1.55; margin-bottom:16px; color:var(--ink); }
+  .blank{
+    display:inline-block; font-weight:600; color:var(--accent);
+    border-bottom:2px dotted var(--accent);
+    padding:0 3px; font-family:'IBM Plex Mono', monospace; font-size:.92em;
+  }
+
+  .blank-group-label{ font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint); margin:14px 0 8px; }
+  .blank-group-label:first-of-type{ margin-top:2px; }
+
+  .options{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
+  .opt{
+    text-align:left;
+    display:flex; align-items:flex-start; gap:10px;
+    padding:11px 13px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:var(--surface-raised);
+    color:var(--ink);
+    font-family:'Work Sans', sans-serif;
+    font-size:.97rem;
+    cursor:pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .opt:hover{ border-color:var(--ink-faint); }
+  .opt:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .opt .k{
+    font-family:'IBM Plex Mono', monospace; font-size:.78rem; color:var(--ink-faint);
+    flex:0 0 auto; width:1.3em;
+  }
+  .opt.selected{ border-color:var(--accent); background:var(--accent-soft); }
+  .opt.correct{ border-color:var(--good); background:var(--good-soft); }
+  .opt.incorrect{ border-color:var(--bad); background:var(--bad-soft); }
+  .opt:disabled{ cursor:default; }
+  .opt.correct .k, .opt.incorrect .k{ color:inherit; }
+
+  .se-hint{ font-size:.78rem; color:var(--ink-faint); margin-bottom:10px; }
+
+  .explain{
+    margin-top:14px; padding:12px 14px;
+    background:var(--surface-raised);
+    border:1px solid var(--line);
+    border-radius:10px;
+    font-size:.92rem; line-height:1.55; color:var(--ink-soft);
+    animation: rise .2s ease;
+  }
+  .explain b{ color:var(--ink); font-weight:600; }
+  @keyframes rise{ from{ opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  .verdict{ font-weight:600; margin-bottom:4px; font-family:'Work Sans',sans-serif; font-size:.92rem; }
+  .verdict.good{ color:var(--good); }
+  .verdict.bad{ color:var(--bad); }
+
+  .actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+  button.primary, button.ghost{
+    font-family:'Work Sans', sans-serif; font-weight:600; font-size:.92rem;
+    padding:11px 20px; border-radius:9px; cursor:pointer;
+    border:1px solid transparent;
+    transition: opacity .15s ease, transform .1s ease;
+  }
+  button.primary{ background:var(--accent); color:var(--accent-ink); }
+  button.primary:disabled{ opacity:.4; cursor:not-allowed; }
+  button.primary:not(:disabled):active{ transform:scale(.98); }
+  button.ghost{ background:transparent; border-color:var(--line); color:var(--ink-soft); }
+  button.ghost:hover{ border-color:var(--ink-faint); }
+  button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* ---------- Start / Summary screens ---------- */
+  .hero-card{ text-align:left; }
+  .hero-card h2{ font-size:1.55rem; margin-bottom:6px; }
+  .hero-card p.lede{ color:var(--ink-soft); font-size:.96rem; line-height:1.55; margin-bottom:18px; }
+  .breakdown{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+  .chip{
+    font-size:.8rem; padding:6px 11px; border-radius:100px;
+    background:var(--surface-raised); border:1px solid var(--line); color:var(--ink-soft);
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .start-btn{ width:100%; padding:14px; font-size:1rem; border-radius:11px; }
+
+  .score-big{
+    font-family:'Newsreader', Georgia, serif; font-size:3rem; font-weight:600;
+    color:var(--accent); line-height:1; margin-bottom:2px;
+  }
+  .score-sub{ color:var(--ink-faint); font-size:.85rem; margin-bottom:22px; }
+  .breakdown-table{ display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+  .bt-row{ display:flex; align-items:center; justify-content:space-between; font-size:.9rem; padding-bottom:10px; border-bottom:1px solid var(--line); }
+  .bt-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .bt-label{ color:var(--ink-soft); }
+  .bt-val{ font-family:'IBM Plex Mono', monospace; color:var(--ink); }
+
+  .missed-words{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
+  .word-chip{
+    font-family:'Newsreader', Georgia, serif; font-style:italic; font-size:.94rem;
+    padding:6px 12px; border-radius:100px; background:var(--bad-soft); color:var(--bad); border:1px solid transparent;
+  }
+  .empty-note{ color:var(--ink-faint); font-size:.88rem; }
+
+  .streak-banner{
+    display:flex; align-items:center; gap:12px;
+    background:var(--surface-raised); border:1px solid var(--line);
+    border-radius:11px; padding:12px 14px; margin-bottom:20px;
+  }
+  .streak-banner .sn{ font-family:'IBM Plex Mono', monospace; font-size:1.4rem; color:var(--accent); font-weight:500; }
+  .streak-banner .sl{ font-size:.82rem; color:var(--ink-soft); }
+
+  footer.foot{ text-align:center; color:var(--ink-faint); font-size:.78rem; margin-top:22px; }
+
+  @media (prefers-reduced-motion: reduce){
+    .explain{ animation:none; }
+    button.primary:active{ transform:none; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <div class="name">Verbal Reps</div>
+      <div class="tag">GRE verbal, daily</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n mono" id="streakStat">0</div><div class="l">streak</div></div>
+      <div class="stat"><div class="n mono" id="timerStat">0:00</div><div class="l">time</div></div>
+    </div>
+  </div>
+
+  <div id="progressRow" class="progress-row" hidden></div>
+  <div id="app"></div>
+
+  <footer class="foot">~16 items daily &middot; text completions, sentence equivalence, 2 passages with multiple questions each &middot; ~15–25 min &middot; a new set each morning</footer>
+</div>
+
+<script>
+(function(){
+
+  /* ============ CONTENT ============ */
+  /* This object holds a single day's content. A scheduled task regenerates
+     it and republishes this file each morning, so there is no rotation
+     logic here — "today" is just whatever this block currently contains. */
+  var DAY = { // REPLACE THIS ENTIRE OBJECT WITH TODAY'S REAL CONTENT BEFORE PUBLISHING
+    tc: [],
+    tc2: { prompt:"", blanks:[{options:[],correct:0},{options:[],correct:0}], explain:"" },
+    se: [],
+    rc: []
+  };
+
+  /* ============ STATE ============ */
+  var STORE_KEY = 'verbalRepsState_v1';
+  function todayStr(){
+    var d = new Date();
+    return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  }
+  function yesterdayStr(){
+    var d = new Date(); d.setDate(d.getDate()-1);
+    return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  }
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return { streak:0, lastCompletedDate:null, totalCompleted:0, missedWords:[] };
+  }
+  function saveState(s){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }catch(e){}
+  }
+  var state = loadState();
+
+  /* ============ BUILD ITEM LIST FOR TODAY ============ */
+  function buildItems(){
+    var s = DAY;
+    var items = [];
+    s.tc.forEach(function(q){ items.push({type:'tc', data:q}); });
+    items.push({type:'tc2', data:s.tc2});
+    s.se.forEach(function(q){ items.push({type:'se', data:q}); });
+    // Each rc entry is a passage with 1–3 associated questions; flatten so
+    // every question becomes its own stepper item while sharing the passage.
+    s.rc.forEach(function(passage){
+      passage.questions.forEach(function(q){
+        items.push({type:'rc', data:{
+          passage: passage.passage,
+          question: q.question,
+          options: q.options,
+          correct: q.correct,
+          explain: q.explain
+        }});
+      });
+    });
+    return items;
+  }
+
+  /* ============ APP STATE ============ */
+  var screen = 'start'; // start | quiz | summary
+  var items = [];
+  var idx = 0;
+  var answered = []; // per item: {correct:bool, missedWord: string|null}
+  var timerSec = 0, timerHandle = null;
+  var alreadyDoneToday = state.lastCompletedDate === todayStr();
+
+  var appEl = document.getElementById('app');
+  var progressRow = document.getElementById('progressRow');
+  var streakStat = document.getElementById('streakStat');
+  var timerStat = document.getElementById('timerStat');
+
+  streakStat.textContent = state.streak;
+
+  function fmtTime(sec){
+    var m = Math.floor(sec/60), s = sec%60;
+    return m+':'+(s<10?'0':'')+s;
+  }
+  function startTimer(){
+    stopTimer();
+    timerHandle = setInterval(function(){
+      timerSec++; timerStat.textContent = fmtTime(timerSec);
+    }, 1000);
+  }
+  function stopTimer(){ if(timerHandle){ clearInterval(timerHandle); timerHandle=null; } }
+
+  function esc(str){
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderProgress(){
+    if(screen !== 'quiz'){ progressRow.hidden = true; return; }
+    progressRow.hidden = false;
+    progressRow.innerHTML = '';
+    items.forEach(function(it, i){
+      var dot = document.createElement('div');
+      dot.className = 'progress-dot';
+      if(i < answered.length){ dot.className += answered[i].correct ? ' done' : ' miss'; }
+      else if(i === idx){ dot.className += ' current'; }
+      progressRow.appendChild(dot);
+    });
+  }
+
+  /* ============ START SCREEN ============ */
+  function renderStart(){
+    stopTimer();
+    var dayNum = state.totalCompleted + 1;
+    var html = '<div class="card hero-card">';
+    if(alreadyDoneToday){
+      html += '<h2>Today’s reps are done</h2>' +
+        '<p class="lede">You already completed today’s set. Streak holds at <b>'+state.streak+'</b>. A fresh set arrives tomorrow morning — or run through today’s again for extra practice (won’t affect your streak).</p>' +
+        '<div class="streak-banner"><div class="sn mono">'+state.streak+'</div><div class="sl">day streak' + (state.streak===1?'':'s') + '</div></div>' +
+        '<button class="primary start-btn" id="startBtn">Practice again anyway</button>';
+    } else {
+      html += '<h2>Day '+dayNum+' &middot; Verbal Reps</h2>' +
+        '<p class="lede">A short, mixed set: fill-in-the-blank vocabulary, best-pair sentence equivalence, and two short reading passages. Immediate feedback after every question, with words to review at the end.</p>' +
+        '<div class="breakdown">' +
+          '<span class="chip">5 text completion</span>' +
+          '<span class="chip">1 double blank</span>' +
+          '<span class="chip">4 sentence equivalence</span>' +
+          '<span class="chip">2 passages &middot; 6 questions</span>' +
+          '<span class="chip">~15–25 min</span>' +
+        '</div>' +
+        (state.streak > 0 ? '<div class="streak-banner"><div class="sn mono">'+state.streak+'</div><div class="sl">day streak &mdash; keep it going</div></div>' : '') +
+        '<button class="primary start-btn" id="startBtn">Start today’s set</button>';
+    }
+    html += '</div>';
+    appEl.innerHTML = html;
+    document.getElementById('startBtn').addEventListener('click', function(){
+      items = buildItems();
+      idx = 0; answered = []; timerSec = 0; timerStat.textContent = '0:00';
+      screen = 'quiz';
+      startTimer();
+      render();
+    });
+  }
+
+  /* ============ QUIZ SCREEN ============ */
+  function typeLabel(t){
+    return { tc:'Text Completion', tc2:'Text Completion · 2 Blanks', se:'Sentence Equivalence', rc:'Reading Comprehension' }[t];
+  }
+
+  function renderQuiz(){
+    var it = items[idx];
+    var body = '<div class="card">' +
+      '<div class="tag-row"><span class="type-tag">'+typeLabel(it.type)+'</span><span class="item-index mono">'+(idx+1)+' / '+items.length+'</span></div>';
+
+    if(it.type === 'tc'){
+      body += renderTC(it.data);
+    } else if(it.type === 'tc2'){
+      body += renderTC2(it.data);
+    } else if(it.type === 'se'){
+      body += renderSE(it.data);
+    } else if(it.type === 'rc'){
+      body += renderRC(it.data);
+    }
+    body += '</div>';
+    appEl.innerHTML = body;
+    renderProgress();
+    wireItem(it);
+  }
+
+  function renderTC(q){
+    var letters = ['A','B','C','D','E'];
+    var html = '<div class="prompt">'+esc(q.prompt).replace('___','<span class="blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>')+'</div>';
+    html += '<div class="options" id="optGroup">';
+    q.options.forEach(function(opt,i){
+      html += '<button class="opt" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+    });
+    html += '</div><div id="explainArea"></div>';
+    html += actionsHTML();
+    return html;
+  }
+
+  function renderTC2(q){
+    var letters = ['A','B','C'];
+    var html = '<div class="prompt">'+esc(q.prompt)
+      .replace('(i)___','<span class="blank">(i)</span>')
+      .replace('(ii)___','<span class="blank">(ii)</span>')+'</div>';
+    html += '<div class="blank-group-label">Blank (i)</div><div class="options" data-blank="0">';
+    q.blanks[0].options.forEach(function(opt,i){
+      html += '<button class="opt" data-blank="0" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+    });
+    html += '</div>';
+    html += '<div class="blank-group-label">Blank (ii)</div><div class="options" data-blank="1">';
+    q.blanks[1].options.forEach(function(opt,i){
+      html += '<button class="opt" data-blank="1" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+    });
+    html += '</div><div id="explainArea"></div>';
+    html += actionsHTML();
+    return html;
+  }
+
+  function renderSE(q){
+    var letters = ['A','B','C','D','E','F'];
+    var html = '<div class="prompt">'+esc(q.prompt).replace('___','<span class="blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>')+'</div>';
+    html += '<div class="se-hint">Select the two answers that best complete the sentence with equivalent meaning.</div>';
+    html += '<div class="options" id="optGroup">';
+    q.options.forEach(function(opt,i){
+      html += '<button class="opt" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+    });
+    html += '</div><div id="explainArea"></div>';
+    html += actionsHTML();
+    return html;
+  }
+
+  function renderRC(q){
+    var letters = ['A','B','C','D','E'];
+    var html = '<div class="passage">'+esc(q.passage)+'</div>';
+    html += '<div class="question-line">'+esc(q.question)+'</div>';
+    html += '<div class="options" id="optGroup">';
+    q.options.forEach(function(opt,i){
+      html += '<button class="opt" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+    });
+    html += '</div><div id="explainArea"></div>';
+    html += actionsHTML();
+    return html;
+  }
+
+  function actionsHTML(){
+    return '<div class="actions"><button class="ghost" id="checkBtn" disabled>Check</button>' +
+      '<button class="primary" id="nextBtn" disabled>Next</button></div>';
+  }
+
+  function wireItem(it){
+    var checkBtn = document.getElementById('checkBtn');
+    var nextBtn = document.getElementById('nextBtn');
+    var checked = false;
+
+    if(it.type === 'tc' || it.type === 'rc'){
+      var sel = null;
+      var opts = appEl.querySelectorAll('#optGroup .opt');
+      opts.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(checked) return;
+          opts.forEach(function(b){ b.classList.remove('selected'); });
+          btn.classList.add('selected');
+          sel = parseInt(btn.getAttribute('data-i'),10);
+          checkBtn.disabled = false;
+        });
+      });
+      checkBtn.addEventListener('click', function(){
+        if(sel===null || checked) return;
+        checked = true;
+        var correct = sel === it.data.correct;
+        opts.forEach(function(btn){
+          var i = parseInt(btn.getAttribute('data-i'),10);
+          btn.disabled = true;
+          if(i === it.data.correct) btn.classList.add('correct');
+          else if(i === sel) btn.classList.add('incorrect');
+        });
+        showExplain(correct, it.data.explain);
+        var missed = correct ? null : it.data.options[it.data.correct];
+        recordAnswer(correct, missed ? [missed] : []);
+        checkBtn.disabled = true;
+        nextBtn.disabled = false;
+      });
+    }
+
+    else if(it.type === 'se'){
+      var selSet = [];
+      var opts = appEl.querySelectorAll('#optGroup .opt');
+      opts.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(checked) return;
+          var i = parseInt(btn.getAttribute('data-i'),10);
+          var pos = selSet.indexOf(i);
+          if(pos >= 0){ selSet.splice(pos,1); btn.classList.remove('selected'); }
+          else {
+            if(selSet.length >= 2) return;
+            selSet.push(i); btn.classList.add('selected');
+          }
+          checkBtn.disabled = selSet.length !== 2;
+        });
+      });
+      checkBtn.addEventListener('click', function(){
+        if(selSet.length !== 2 || checked) return;
+        checked = true;
+        var sorted = selSet.slice().sort();
+        var correctPair = it.data.correct.slice().sort();
+        var correct = sorted[0]===correctPair[0] && sorted[1]===correctPair[1];
+        opts.forEach(function(btn){
+          var i = parseInt(btn.getAttribute('data-i'),10);
+          btn.disabled = true;
+          var isCorrectOpt = it.data.correct.indexOf(i) >= 0;
+          var wasSelected = selSet.indexOf(i) >= 0;
+          if(isCorrectOpt) btn.classList.add('correct');
+          else if(wasSelected) btn.classList.add('incorrect');
+        });
+        showExplain(correct, it.data.explain);
+        var missedWords = correct ? [] : it.data.correct.map(function(i){ return it.data.options[i]; });
+        recordAnswer(correct, missedWords);
+        checkBtn.disabled = true;
+        nextBtn.disabled = false;
+      });
+    }
+
+    else if(it.type === 'tc2'){
+      var selA = null, selB = null;
+      var groupA = appEl.querySelectorAll('.options[data-blank="0"] .opt');
+      var groupB = appEl.querySelectorAll('.options[data-blank="1"] .opt');
+      groupA.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(checked) return;
+          groupA.forEach(function(b){ b.classList.remove('selected'); });
+          btn.classList.add('selected');
+          selA = parseInt(btn.getAttribute('data-i'),10);
+          checkBtn.disabled = !(selA!==null && selB!==null);
+        });
+      });
+      groupB.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(checked) return;
+          groupB.forEach(function(b){ b.classList.remove('selected'); });
+          btn.classList.add('selected');
+          selB = parseInt(btn.getAttribute('data-i'),10);
+          checkBtn.disabled = !(selA!==null && selB!==null);
+        });
+      });
+      checkBtn.addEventListener('click', function(){
+        if(selA===null || selB===null || checked) return;
+        checked = true;
+        var aCorrect = selA === it.data.blanks[0].correct;
+        var bCorrect = selB === it.data.blanks[1].correct;
+        var correct = aCorrect && bCorrect;
+        groupA.forEach(function(btn){
+          var i = parseInt(btn.getAttribute('data-i'),10);
+          btn.disabled = true;
+          if(i === it.data.blanks[0].correct) btn.classList.add('correct');
+          else if(i === selA) btn.classList.add('incorrect');
+        });
+        groupB.forEach(function(btn){
+          var i = parseInt(btn.getAttribute('data-i'),10);
+          btn.disabled = true;
+          if(i === it.data.blanks[1].correct) btn.classList.add('correct');
+          else if(i === selB) btn.classList.add('incorrect');
+        });
+        showExplain(correct, it.data.explain);
+        var missedWords = [];
+        if(!aCorrect) missedWords.push(it.data.blanks[0].options[it.data.blanks[0].correct]);
+        if(!bCorrect) missedWords.push(it.data.blanks[1].options[it.data.blanks[1].correct]);
+        recordAnswer(correct, missedWords);
+        checkBtn.disabled = true;
+        nextBtn.disabled = false;
+      });
+    }
+
+    nextBtn.addEventListener('click', function(){
+      idx++;
+      if(idx >= items.length){ finishSession(); }
+      else { render(); }
+    });
+  }
+
+  function showExplain(correct, explainHtml){
+    var area = document.getElementById('explainArea');
+    area.innerHTML = '<div class="explain"><div class="verdict '+(correct?'good':'bad')+'">'+(correct?'Correct.':'Not quite.')+'</div>'+explainHtml+'</div>';
+  }
+
+  function recordAnswer(correct, missedWords){
+    answered.push({correct:correct, missedWords:missedWords});
+    renderProgress();
+  }
+
+  /* ============ SUMMARY SCREEN ============ */
+  function finishSession(){
+    stopTimer();
+    screen = 'summary';
+
+    var correctCount = answered.filter(function(a){return a.correct;}).length;
+    var tcCount = items.filter(function(it){return it.type==='tc'||it.type==='tc2';}).length;
+    var seCount = items.filter(function(it){return it.type==='se';}).length;
+    var rcCount = items.filter(function(it){return it.type==='rc';}).length;
+    var tcCorrect = 0, seCorrect = 0, rcCorrect = 0;
+    items.forEach(function(it,i){
+      if(!answered[i]) return;
+      if((it.type==='tc'||it.type==='tc2') && answered[i].correct) tcCorrect++;
+      if(it.type==='se' && answered[i].correct) seCorrect++;
+      if(it.type==='rc' && answered[i].correct) rcCorrect++;
+    });
+
+    var allMissed = [];
+    answered.forEach(function(a){ allMissed = allMissed.concat(a.missedWords); });
+
+    // update persistent state only for a genuine new-day completion
+    if(!alreadyDoneToday){
+      var y = yesterdayStr();
+      if(state.lastCompletedDate === y) state.streak = state.streak + 1;
+      else state.streak = 1;
+      state.lastCompletedDate = todayStr();
+      state.totalCompleted = state.totalCompleted + 1;
+      state.missedWords = (state.missedWords || []).concat(allMissed).slice(-40);
+      saveState(state);
+      streakStat.textContent = state.streak;
+    }
+
+    var pct = Math.round(100 * correctCount / items.length);
+
+    var html = '<div class="card">' +
+      '<div class="score-big mono">'+correctCount+'<span style="font-size:1.6rem;color:var(--ink-faint);">/'+items.length+'</span></div>' +
+      '<div class="score-sub">'+pct+'% correct &middot; finished in '+fmtTime(timerSec)+'</div>' +
+      '<div class="breakdown-table">' +
+        '<div class="bt-row"><span class="bt-label">Text completion</span><span class="bt-val mono">'+tcCorrect+' / '+tcCount+'</span></div>' +
+        '<div class="bt-row"><span class="bt-label">Sentence equivalence</span><span class="bt-val mono">'+seCorrect+' / '+seCount+'</span></div>' +
+        '<div class="bt-row"><span class="bt-label">Reading comprehension</span><span class="bt-val mono">'+rcCorrect+' / '+rcCount+'</span></div>' +
+      '</div>';
+
+    html += '<h3 style="font-size:1.05rem; margin-bottom:10px;">Words to review</h3>';
+    if(allMissed.length){
+      html += '<div class="missed-words">' + allMissed.map(function(w){ return '<span class="word-chip">'+esc(w)+'</span>'; }).join('') + '</div>';
+    } else {
+      html += '<p class="empty-note">Clean sweep on vocabulary today &mdash; nothing to flag.</p>';
+    }
+
+    if(!alreadyDoneToday){
+      html += '<div class="streak-banner"><div class="sn mono">'+state.streak+'</div><div class="sl">day streak &mdash; a fresh set is ready tomorrow</div></div>';
+    }
+
+    html += '<button class="primary start-btn" id="restartBtn">Back to overview</button>';
+    html += '</div>';
+
+    appEl.innerHTML = html;
+    progressRow.hidden = true;
+    document.getElementById('restartBtn').addEventListener('click', function(){
+      alreadyDoneToday = state.lastCompletedDate === todayStr();
+      screen = 'start';
+      render();
+    });
+  }
+
+  /* ============ ROUTER ============ */
+  function render(){
+    if(screen === 'start') renderStart();
+    else if(screen === 'quiz') renderQuiz();
+    else if(screen === 'summary') { /* built directly by finishSession */ }
+  }
+
+  render();
+})();
+</script>
+
+</body></html>
