@@ -32,7 +32,7 @@ create table if not exists words (
   word                text not null unique,
   pos                 text not null,               -- part of speech: n / v / adj / adv
   definition          text not null,
-  tier                smallint not null,            -- 1 = core/most frequent, 2 = common, 3 = advanced/rarer
+  tier                smallint not null check (tier in (1, 2, 3)),  -- 1 = core/most frequent, 2 = common, 3 = advanced/rarer
   times_covered       integer not null default 0,
   first_covered_date  date,
   last_covered_date   date
@@ -66,7 +66,6 @@ insert into config (key, value) values
   ('day_length_minutes', '15-25'),
   ('items_per_day', '16'),
   ('new_words_min_per_day', '10'),
-  ('passage_topic_lookback_days', '7'),
   ('questions_per_passage_max', '3'),
   ('questions_per_passage_min', '1'),
   ('rc_passages_per_day', '2'),
@@ -75,7 +74,7 @@ insert into config (key, value) values
 on conflict (key) do nothing;
 ```
 
-These are reasonable defaults, not something to interrogate the person about — they can be changed later just by editing rows in `config`. You'll fill in `artifact_url` and `word_bank_size` for real in a later step.
+These are reasonable defaults, not something to interrogate the person about — they can be changed later just by editing rows in `config`. (There is deliberately no topic-lookback setting: the daily job de-duplicates passage topics against the *entire* `daily_sessions` history, because a rolling window let topics resurface after a week or so.) You'll fill in `artifact_url` and `word_bank_size` for real in a later step.
 
 ## Step 4 — Generate the initial vocabulary bank
 
@@ -115,15 +114,17 @@ Now produce a real, complete first day of content — not a placeholder — and 
 - 4 Sentence Equivalence items (6 options each, exactly 2 correct — a genuine synonym pair, no partial credit)
 - 2 Reading Comprehension passages (~150-250 words, substantive and argumentatively dense, not just descriptive), each with 2-3 questions of varied type (main idea, inference, word-in-context, function-of-a-sentence, etc.), 5 options each
 
+Every text completion, double-blank, and sentence equivalence item also needs a `glossary` array covering each *uncommon* word among its options (correct answers and advanced distractors alike; skip everyday words): `word` (exactly as in the options), `meaning` (a 3-8 word plain-English gloss), and `synonym` (one simple everyday synonym). The page renders it under the explanation. Reading comprehension items don't take a glossary.
+
 Every item needs a 1-2 sentence explanation of the correct answer, referencing the specific word or textual evidence. Before publishing, re-read every item: confirm each TC/SE has exactly one unambiguous best answer under standard dictionary definitions, SE pairs are genuine synonyms (not just the same part of speech), RC questions are answerable from the passage alone, and vocabulary register matches your tier 3 ceiling (nothing wildly more obscure).
 
-**Publish the page.** Use the HTML in [`artifact-template.html`](./artifact-template.html) (next to this file) as the page's full source, verbatim except for the `DAY` object inside the `<script>` block near the top of the script, which you replace with today's real content in this exact shape:
+**Publish the page.** Use the HTML in [`artifact-template.html`](./artifact-template.html) (next to this file) as the page's full source, verbatim except for the `DAY` object inside the `<script>` block near the top of the script, which you replace with today's real content in this exact shape (the template's page already contains the glossary rendering code):
 
 ```js
 var DAY = { // Day 1 — <today's date, YYYY-MM-DD>
-  tc: [ {prompt, options:[5 strings], correct: idx, explain}, ... 5 items ],
-  tc2: { prompt, blanks:[ {options:[3 strings], correct:idx}, {options:[3 strings], correct:idx} ], explain },
-  se: [ {prompt, options:[6 strings], correct:[i,j], explain}, ... 4 items ],
+  tc: [ {prompt, options:[5 strings], correct: idx, explain, glossary:[{word,meaning,synonym}, ...]}, ... 5 items ],
+  tc2: { prompt, blanks:[ {options:[3 strings], correct:idx}, {options:[3 strings], correct:idx} ], explain, glossary:[{word,meaning,synonym}, ...] },
+  se: [ {prompt, options:[6 strings], correct:[i,j], explain, glossary:[{word,meaning,synonym}, ...]}, ... 4 items ],
   rc: [
     { topic: "short topic label", passage: "...", questions: [ {question, options:[5 strings], correct:idx, explain}, ... 2-3 items ] },
     { topic: "...", passage: "...", questions: [ ... ] }
@@ -145,7 +146,7 @@ update config set value = 'ARTIFACT_URL' where key = 'artifact_url';
 
 ## Step 7 — Log Day 1 like a normal run would
 
-So the recycling and lookback logic in the daily job works correctly starting from day 2, close out today's "session" the same way the daily job will every day after:
+So the recycling and topic de-duplication logic in the daily job works correctly starting from day 2, close out today's "session" the same way the daily job will every day after:
 
 ```sql
 update words set times_covered = times_covered + 1, last_covered_date = current_date, first_covered_date = coalesce(first_covered_date, current_date) where word in (/* the ~16 words you used above */);

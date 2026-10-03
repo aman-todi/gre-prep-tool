@@ -169,6 +169,12 @@
 
   .se-hint{ font-size:.78rem; color:var(--ink-faint); margin-bottom:10px; }
 
+  .glossary{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  .glossary-title{ font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint); margin-bottom:8px; }
+  .gloss-row{ font-size:.88rem; line-height:1.5; color:var(--ink-soft); margin-bottom:4px; }
+  .gloss-row b{ color:var(--ink); font-weight:600; font-family:'Newsreader', Georgia, serif; font-style:italic; }
+  .gloss-syn{ color:var(--ink-faint); }
+
   .explain{
     margin-top:14px; padding:12px 14px;
     background:var(--surface-raised);
@@ -270,13 +276,14 @@
      it and republishes this file each morning, so there is no rotation
      logic here — "today" is just whatever this block currently contains. */
   var DAY = { // REPLACE THIS ENTIRE OBJECT WITH TODAY'S REAL CONTENT BEFORE PUBLISHING
+    // tc / tc2 / se items each carry a glossary: [{word, meaning, synonym}, ...]
     tc: [],
-    tc2: { prompt:"", blanks:[{options:[],correct:0},{options:[],correct:0}], explain:"" },
+    tc2: { prompt:"", blanks:[{options:[],correct:0},{options:[],correct:0}], explain:"", glossary:[] },
     se: [],
     rc: []
   };
 
-  /* ============ STATE ============ */
+    /* ============ STATE ============ */
   var STORE_KEY = 'verbalRepsState_v1';
   function todayStr(){
     var d = new Date();
@@ -513,7 +520,7 @@
           if(i === it.data.correct) btn.classList.add('correct');
           else if(i === sel) btn.classList.add('incorrect');
         });
-        showExplain(correct, it.data.explain);
+        showExplain(correct, it.data.explain, it.type === 'tc' ? it.data.glossary : null);
         var missed = correct ? null : it.data.options[it.data.correct];
         recordAnswer(correct, missed ? [missed] : []);
         checkBtn.disabled = true;
@@ -551,7 +558,7 @@
           if(isCorrectOpt) btn.classList.add('correct');
           else if(wasSelected) btn.classList.add('incorrect');
         });
-        showExplain(correct, it.data.explain);
+        showExplain(correct, it.data.explain, it.data.glossary);
         var missedWords = correct ? [] : it.data.correct.map(function(i){ return it.data.options[i]; });
         recordAnswer(correct, missedWords);
         checkBtn.disabled = true;
@@ -599,7 +606,7 @@
           if(i === it.data.blanks[1].correct) btn.classList.add('correct');
           else if(i === selB) btn.classList.add('incorrect');
         });
-        showExplain(correct, it.data.explain);
+        showExplain(correct, it.data.explain, it.data.glossary);
         var missedWords = [];
         if(!aCorrect) missedWords.push(it.data.blanks[0].options[it.data.blanks[0].correct]);
         if(!bCorrect) missedWords.push(it.data.blanks[1].options[it.data.blanks[1].correct]);
@@ -616,9 +623,19 @@
     });
   }
 
-  function showExplain(correct, explainHtml){
+  function glossaryHTML(glossary){
+    if(!glossary || !glossary.length) return '';
+    var html = '<div class="glossary"><div class="glossary-title">Words in this item</div>';
+    glossary.forEach(function(g){
+      html += '<div class="gloss-row"><b>'+esc(g.word)+'</b> — '+esc(g.meaning)+' <span class="gloss-syn">(≈ '+esc(g.synonym)+')</span></div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function showExplain(correct, explainHtml, glossary){
     var area = document.getElementById('explainArea');
-    area.innerHTML = '<div class="explain"><div class="verdict '+(correct?'good':'bad')+'">'+(correct?'Correct.':'Not quite.')+'</div>'+explainHtml+'</div>';
+    area.innerHTML = '<div class="explain"><div class="verdict '+(correct?'good':'bad')+'">'+(correct?'Correct.':'Not quite.')+'</div>'+explainHtml+glossaryHTML(glossary)+'</div>';
   }
 
   function recordAnswer(correct, missedWords){
@@ -702,5 +719,6 @@
   render();
 })();
 </script>
+
 
 </body></html>

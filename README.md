@@ -1,6 +1,6 @@
 # GRE Verbal Reps
 
-A free, self-updating daily GRE Verbal practice tool. Every morning, a scheduled Claude run writes a fresh 16-item set (text completion, sentence equivalence, reading comprehension — current GRE format) to a page you bookmark once, and tracks which of a growing vocabulary bank you've been drilled on. No app, no server, no bill.
+A free, self-updating daily GRE Verbal practice tool. Every morning, a scheduled Claude run writes a fresh 16-item set (text completion, sentence equivalence, reading comprehension — current GRE format, with a short glossary of the harder answer-choice words) to a page you bookmark once, and tracks which of a growing vocabulary bank you've been drilled on. No app, no server, no bill.
 
 **Setup is one prompt.** You don't hand-build a database or a webpage here — you connect a free Supabase project to Claude, then run the [`gre-prep-setup`](./skills/gre-prep-setup/SKILL.md) skill once. Claude designs the schema, generates the initial vocabulary bank, publishes the practice page, and creates the daily scheduled task, end to end, in that one run.
 
@@ -57,7 +57,7 @@ Earlier drafts of this repo shipped a static ~800-word CSV and a pre-built artif
 
 Everything that shapes daily output lives in Supabase, not the scheduled prompt, on purpose:
 
-- Tune item counts, coverage targets, or the review lookback window → edit `config`
+- Tune item counts or coverage targets → edit `config`
 - Grow, trim, or correct the vocabulary → edit `words` directly, or just ask Claude to add words
 - Restyle the page → edit the artifact's HTML/CSS directly (the scheduled run only ever touches the `DAY` object, so a restyle survives future runs)
 
