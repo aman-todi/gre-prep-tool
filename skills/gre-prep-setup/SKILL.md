@@ -20,7 +20,7 @@ If any of these is missing, say so plainly and stop rather than building part of
 
 ## Step 1 — Identify the Supabase project
 
-List the Supabase projects reachable through your connection. If there's exactly one, use it and just confirm its name back to the person. If there's more than one, ask which to use. Either way, note its **project ref** (a short id like `owjpkhlxooiutwzmabpz`) — you'll need it repeatedly below. Call it `PROJECT_ID` for the rest of this skill.
+List the Supabase projects reachable through your connection. If there's exactly one, use it and just confirm its name back to the person. If there's more than one, ask which to use. Either way, note its **project ref** (a short id like `owjpkhlxooiutwzmabpz`) — you'll need it repeatedly below. Call it `PROJECT_ID` for the rest of this skill, and its display name `PROJECT_NAME`.
 
 ## Step 2 — Create the schema
 
@@ -66,6 +66,7 @@ insert into config (key, value) values
   ('day_length_minutes', '15-25'),
   ('items_per_day', '16'),
   ('new_words_min_per_day', '10'),
+  ('passage_topic_lookback_days', '36500'),
   ('questions_per_passage_max', '3'),
   ('questions_per_passage_min', '1'),
   ('rc_passages_per_day', '2'),
@@ -74,7 +75,7 @@ insert into config (key, value) values
 on conflict (key) do nothing;
 ```
 
-These are reasonable defaults, not something to interrogate the person about — they can be changed later just by editing rows in `config`. (There is deliberately no topic-lookback setting: the daily job de-duplicates passage topics against the *entire* `daily_sessions` history, because a rolling window let topics resurface after a week or so.) You'll fill in `artifact_url` and `word_bank_size` for real in a later step.
+These are reasonable defaults, not something to interrogate the person about — they can be changed later just by editing rows in `config`. (`passage_topic_lookback_days` is a legacy key kept at a huge placeholder so it can never act as a short window: the daily job de-duplicates passage topics against the *entire* `daily_sessions` history, because a 7-day window let topics resurface after a week or so. Don't lower it.) You'll fill in `artifact_url` and `word_bank_size` for real in a later step.
 
 ## Step 4 — Generate the initial vocabulary bank
 
@@ -163,7 +164,7 @@ Ask the person what time they want their set ready each morning (default: 6:00 A
 - **Schedule**: daily, at the time they gave you
 - **Approval mode**: automatic / no approval required — nobody is there at 6 AM to click "approve," and the prompt below is written to never ask a question
 - **Tools available to the task**: only the Supabase connector, scoped as in step 2 of the setup docs (`execute_sql` at minimum). It doesn't need any other connector.
-- **Prompt**: the text in [`daily-prompt-template.md`](./daily-prompt-template.md) (next to this file), with `ARTIFACT_URL` and `PROJECT_ID` replaced with the real values from this session (not left as literal placeholder text), and the person's name filled in if they gave you one (otherwise just say "the user" and drop the name).
+- **Prompt**: the text in [`daily-prompt-template.md`](./daily-prompt-template.md) (next to this file), with `ARTIFACT_URL`, `PROJECT_NAME`, `PROJECT_ID` and `WORD_BANK_SIZE` replaced with the real values from this session (not left as literal placeholder text), and `<NAME>` replaced with the person's name if they gave you one (otherwise "the user").
 
 ## Step 9 — Report back
 
