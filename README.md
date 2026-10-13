@@ -1,66 +1,31 @@
 # GRE Verbal Reps
 
-A free, self-updating daily GRE Verbal practice tool. Every morning, a scheduled Claude run writes a fresh 16-item set (text completion, sentence equivalence, reading comprehension — current GRE format, with a short glossary of the harder answer-choice words) to a page you bookmark once, and tracks which of a growing vocabulary bank you've been drilled on. No app, no server, no bill.
-
-**Setup is one prompt.** You don't hand-build a database or a webpage here — you connect a free Supabase project to Claude, then run the [`gre-prep-setup`](./skills/gre-prep-setup/SKILL.md) skill once. Claude designs the schema, generates the initial vocabulary bank, publishes the practice page, and creates the daily scheduled task, end to end, in that one run.
-
-## How it works
+A free daily GRE Verbal practice page that updates itself. Every morning a scheduled Claude routine writes a new 16-question set to a page you bookmark once. The set has 5 single-blank text completions, 1 double-blank, 4 sentence equivalence items and 2 reading passages, in the current GRE format. The routine also tracks which words from a vocabulary bank you've covered.
 
 ```
-   one-time setup                          every morning after
-        │                                          │
-        ▼                                          ▼
-┌────────────────────┐                   ┌────────────────────┐
-│  gre-prep-setup     │   creates         │  Scheduled Claude   │
-│  skill runs once,   │──schema, seed────►│  task fires         │
-│  in your Claude     │   words, task     │  (no memory of      │
-│  session             │                   │   any prior run)    │
-└─────────┬───────────┘                   └─────────┬───────────┘
-          │                                          │ reads config + word
-          │ publishes                                │ history, writes new
-          ▼                                          ▼ content, logs session
-┌────────────────────┐                   ┌────────────────────┐
-│  Claude Artifact     │◄──── republished ─┤  Supabase (free)    │
-│  (the page you open  │      in place      │  words / config /   │
-│   each morning)      │      each morning  │  daily_sessions     │
-└────────────────────┘                   └────────────────────┘
+setup skill (once) ──► Supabase: words · daily_sessions · config
+        │                        ▲ reads state / logs the day
+        ▼                        │
+  Artifact page ◄── rewritten ── daily routine
 ```
 
-- **Supabase** holds three tables: `words` (the practice bank, with per-word coverage tracking), `daily_sessions` (a log used to avoid repeating passage topics and words), and `config` (the knobs — item counts, coverage goals, the artifact's URL — that every run reads instead of hardcoding numbers). The setup skill creates and seeds all three; nothing to write by hand.
-- **The artifact** is one self-contained HTML page with a `var DAY = {...}` object holding that day's content. It has no backend of its own — the scheduled run edits `DAY` and republishes to the same URL every morning, so the link you bookmark never changes. Your streak and completion state live in the browser's `localStorage`, per device.
-- **The scheduled task** is a Claude prompt that fires daily with no memory of any previous run — it reads everything it needs from Supabase and the live artifact each time, generates and self-checks new content, publishes, then logs what it did back to Supabase.
+- **Supabase** holds three tables:
+  - `words`: the bank, with tiers and how often each word has been covered
+  - `daily_sessions`: one row per day, used so passage topics and words don't repeat
+  - `config`: item counts, coverage goal and the page URL
+- **The page** is one HTML file whose content lives in a `var DAY = {...}` object. Each item gets an explanation and a glossary of the hard answer-choice words. You can move freely between questions with Back/Next and the progress dots, and a review screen shows each item's status before you finish. Streaks are stored in the browser.
+- **The routine** ([prompt](./skills/gre-prep-setup/daily-prompt-template.md)) reads Supabase and the page, writes and checks a new set, republishes the page to the same URL, then logs the day.
 
-## Set it up (free, ~10 minutes, mostly waiting on Supabase to provision)
+## Setup
 
-1. [Create a free Supabase account and project](./docs/01-supabase-setup.md) — just the account and an empty project. No schema to write.
-2. [Connect that project to Claude via the Supabase MCP connector](./docs/02-connect-mcp.md)
-3. [Run the `gre-prep-setup` skill once](./docs/03-run-the-setup-skill.md) — this is the step that builds everything
+See [docs/setup.md](./docs/setup.md). You create a free Supabase project, connect it to Claude and run the [`gre-prep-setup`](./skills/gre-prep-setup/SKILL.md) skill once.
 
-After that, it runs itself. The only thing you keep is the artifact link.
+## Customizing
 
-## Repo layout
+- **Counts and coverage:** edit `config`.
+- **Vocabulary:** edit `words`, or ask Claude to add words.
+- **Look and feel:** edit the page's HTML and CSS. The routine only replaces `DAY`, so your changes survive.
 
-```
-docs/
-  01-supabase-setup.md        free account + empty project — nothing else
-  02-connect-mcp.md           connecting the Supabase MCP connector, scoped permissions
-  03-run-the-setup-skill.md   how to actually invoke the skill, what it asks, what it produces
-skills/
-  gre-prep-setup/SKILL.md     the one-time bootstrap: schema, vocabulary bank, artifact, scheduled task
-```
+RLS is off on purpose. Only Claude, connected through your Supabase connector, ever touches the database. Turn RLS on and add policies before you query the database from a browser.
 
-## Why no seed word list or starter page in this repo
-
-Earlier drafts of this repo shipped a static ~800-word CSV and a pre-built artifact HTML file to copy in by hand. That's the wrong shape for something meant to be cloned and reused: a fixed word list goes stale and locks everyone into one person's choices, and a hand-copied artifact is one more manual step that can drift from what the scheduled prompt actually expects. Now Claude generates the word bank and builds the artifact itself, from the same skill that sets up the schema and the scheduled task — so there's one source of truth (`skills/gre-prep-setup/SKILL.md`) instead of three files that can go out of sync.
-
-## Making it your own
-
-Everything that shapes daily output lives in Supabase, not the scheduled prompt, on purpose:
-
-- Tune item counts or coverage targets → edit `config`
-- Grow, trim, or correct the vocabulary → edit `words` directly, or just ask Claude to add words
-- Restyle the page → edit the artifact's HTML/CSS directly (the scheduled run only ever touches the `DAY` object, so a restyle survives future runs)
-
-## A note on Row Level Security
-
-Supabase's own advisors will flag that RLS is off on all three tables — the setup skill leaves it off deliberately. That's safe *for this architecture*: the artifact is a static page with no direct Supabase client in the browser, so the anon/publishable key is never exposed or used — the only thing that ever touches the database is a Claude session, authenticated through your own MCP connection. If you extend this to query Supabase directly from the browser, enable RLS and add policies first.
+[Changelog](./docs/changelog.md)

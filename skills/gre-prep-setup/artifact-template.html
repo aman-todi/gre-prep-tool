@@ -98,6 +98,9 @@
   .progress-dot.done{ background:var(--good); }
   .progress-dot.miss{ background:var(--bad); }
   .progress-dot.current{ background:var(--accent); }
+  .progress-dot{ cursor:pointer; }
+  .progress-dot.touched{ background:var(--accent-soft); }
+
 
   /* ---------- Cards ---------- */
   .card{
@@ -244,6 +247,28 @@
 
   footer.foot{ text-align:center; color:var(--ink-faint); font-size:.78rem; margin-top:22px; }
 
+
+  /* ---------- Review screen ---------- */
+  .review-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+  .review-legend{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:16px; font-size:.78rem; color:var(--ink-faint); }
+  .review-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .review-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:18px; }
+  .review-chip{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px; padding:9px 4px; border-radius:9px; border:1px solid var(--line);
+    background:var(--surface-raised); color:var(--ink-soft); cursor:pointer;
+    font-family:'IBM Plex Mono', monospace; font-size:.8rem;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .review-chip:hover{ border-color:var(--ink-faint); }
+  .review-chip .rc-type{ font-size:.58rem; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; }
+  .review-chip.current{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft) inset; }
+  .review-chip.touched{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent-ink); }
+  .review-chip.done{ border-color:var(--good); background:var(--good-soft); color:var(--good); }
+  .review-chip.miss{ border-color:var(--bad); background:var(--bad-soft); color:var(--bad); }
+  .review-btn{ font-size:.72rem; padding:6px 12px; }
+
   @media (prefers-reduced-motion: reduce){
     .explain{ animation:none; }
     button.primary:active{ transform:none; }
@@ -328,11 +353,43 @@
     return items;
   }
 
+  function freshItemState(it){
+    if(it.type === 'se') return { checked:false, selSet:[], correct:null };
+    if(it.type === 'tc2') return { checked:false, selA:null, selB:null, correct:null };
+    return { checked:false, sel:null, correct:null };
+  }
+
+  function hasSelection(it, st){
+    if(it.type === 'se') return st.selSet && st.selSet.length > 0;
+    if(it.type === 'tc2') return st.selA !== null || st.selB !== null;
+    return st.sel !== null;
+  }
+
+  function isComplete(it, st){
+    if(it.type === 'se') return st.selSet && st.selSet.length === 2;
+    if(it.type === 'tc2') return st.selA !== null && st.selB !== null;
+    return st.sel !== null;
+  }
+
+  function isItemCorrect(it, st){
+    if(!isComplete(it, st)) return false;
+    if(it.type === 'tc' || it.type === 'rc') return st.sel === it.data.correct;
+    if(it.type === 'se'){
+      var sorted = st.selSet.slice().sort();
+      var correctPair = it.data.correct.slice().sort();
+      return sorted[0]===correctPair[0] && sorted[1]===correctPair[1];
+    }
+    if(it.type === 'tc2'){
+      return st.selA === it.data.blanks[0].correct && st.selB === it.data.blanks[1].correct;
+    }
+    return false;
+  }
+
   /* ============ APP STATE ============ */
-  var screen = 'start'; // start | quiz | summary
+  var screen = 'start'; // start | quiz | review | summary
   var items = [];
+  var itemState = [];
   var idx = 0;
-  var answered = []; // per item: {correct:bool, missedWord: string|null}
   var timerSec = 0, timerHandle = null;
   var alreadyDoneToday = state.lastCompletedDate === todayStr();
 
@@ -359,15 +416,25 @@
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  function goTo(i){
+    idx = Math.max(0, Math.min(items.length - 1, i));
+    screen = 'quiz';
+    render();
+  }
+
   function renderProgress(){
     if(screen !== 'quiz'){ progressRow.hidden = true; return; }
     progressRow.hidden = false;
     progressRow.innerHTML = '';
     items.forEach(function(it, i){
+      var st = itemState[i];
       var dot = document.createElement('div');
       dot.className = 'progress-dot';
-      if(i < answered.length){ dot.className += answered[i].correct ? ' done' : ' miss'; }
-      else if(i === idx){ dot.className += ' current'; }
+      if(st.checked){ dot.className += st.correct ? ' done' : ' miss'; }
+      else if(hasSelection(it, st)){ dot.className += ' touched'; }
+      if(i === idx){ dot.className += ' current'; }
+      dot.title = 'Question ' + (i+1);
+      dot.addEventListener('click', function(){ goTo(i); });
       progressRow.appendChild(dot);
     });
   }
@@ -384,7 +451,7 @@
         '<button class="primary start-btn" id="startBtn">Practice again anyway</button>';
     } else {
       html += '<h2>Day '+dayNum+' &middot; Verbal Reps</h2>' +
-        '<p class="lede">A short, mixed set: fill-in-the-blank vocabulary, best-pair sentence equivalence, and two short reading passages. Immediate feedback after every question, with words to review at the end.</p>' +
+        '<p class="lede">A short, mixed set: fill-in-the-blank vocabulary, best-pair sentence equivalence, and two short reading passages. Move freely between questions — jump around, skip, come back later — and check any question for an explanation whenever you want it. Finish whenever you&rsquo;re ready to see results.</p>' +
         '<div class="breakdown">' +
           '<span class="chip">5 text completion</span>' +
           '<span class="chip">1 double blank</span>' +
@@ -399,7 +466,8 @@
     appEl.innerHTML = html;
     document.getElementById('startBtn').addEventListener('click', function(){
       items = buildItems();
-      idx = 0; answered = []; timerSec = 0; timerStat.textContent = '0:00';
+      itemState = items.map(freshItemState);
+      idx = 0; timerSec = 0; timerStat.textContent = '0:00';
       screen = 'quiz';
       startTimer();
       render();
@@ -410,216 +478,300 @@
   function typeLabel(t){
     return { tc:'Text Completion', tc2:'Text Completion · 2 Blanks', se:'Sentence Equivalence', rc:'Reading Comprehension' }[t];
   }
+  function shortTypeLabel(t){
+    return { tc:'TC', tc2:'TC2', se:'SE', rc:'RC' }[t];
+  }
 
   function renderQuiz(){
     var it = items[idx];
+    var st = itemState[idx];
     var body = '<div class="card">' +
-      '<div class="tag-row"><span class="type-tag">'+typeLabel(it.type)+'</span><span class="item-index mono">'+(idx+1)+' / '+items.length+'</span></div>';
+      '<div class="tag-row"><span class="type-tag">'+typeLabel(it.type)+'</span>' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+      '<span class="item-index mono">'+(idx+1)+' / '+items.length+'</span>' +
+      '<button class="ghost review-btn" id="reviewBtn">Review</button>' +
+      '</div></div>';
 
     if(it.type === 'tc'){
-      body += renderTC(it.data);
+      body += renderTC(it.data, st);
     } else if(it.type === 'tc2'){
-      body += renderTC2(it.data);
+      body += renderTC2(it.data, st);
     } else if(it.type === 'se'){
-      body += renderSE(it.data);
+      body += renderSE(it.data, st);
     } else if(it.type === 'rc'){
-      body += renderRC(it.data);
+      body += renderRC(it.data, st);
     }
+    body += navActionsHTML();
     body += '</div>';
     appEl.innerHTML = body;
     renderProgress();
-    wireItem(it);
+    wireItem(it, st);
   }
 
-  function renderTC(q){
+  function explainHTML(correct, explainHtmlText, glossary){
+    return '<div class="explain"><div class="verdict '+(correct?'good':'bad')+'">'+(correct?'Correct.':'Not quite.')+'</div>'+explainHtmlText+glossaryHTML(glossary)+'</div>';
+  }
+
+  function renderTC(q, st){
     var letters = ['A','B','C','D','E'];
     var html = '<div class="prompt">'+esc(q.prompt).replace('___','<span class="blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>')+'</div>';
     html += '<div class="options" id="optGroup">';
     q.options.forEach(function(opt,i){
-      html += '<button class="opt" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+      var cls = 'opt';
+      if(st.checked){
+        if(i === q.correct) cls += ' correct';
+        else if(i === st.sel) cls += ' incorrect';
+      } else if(i === st.sel){ cls += ' selected'; }
+      html += '<button class="'+cls+'" data-i="'+i+'"'+(st.checked?' disabled':'')+'><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
     });
-    html += '</div><div id="explainArea"></div>';
-    html += actionsHTML();
+    html += '</div><div id="explainArea">'+(st.checked ? explainHTML(st.correct, q.explain, q.glossary) : '')+'</div>';
     return html;
   }
 
-  function renderTC2(q){
+  function renderTC2(q, st){
     var letters = ['A','B','C'];
     var html = '<div class="prompt">'+esc(q.prompt)
       .replace('(i)___','<span class="blank">(i)</span>')
       .replace('(ii)___','<span class="blank">(ii)</span>')+'</div>';
     html += '<div class="blank-group-label">Blank (i)</div><div class="options" data-blank="0">';
     q.blanks[0].options.forEach(function(opt,i){
-      html += '<button class="opt" data-blank="0" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+      var cls = 'opt';
+      if(st.checked){
+        if(i === q.blanks[0].correct) cls += ' correct';
+        else if(i === st.selA) cls += ' incorrect';
+      } else if(i === st.selA){ cls += ' selected'; }
+      html += '<button class="'+cls+'" data-blank="0" data-i="'+i+'"'+(st.checked?' disabled':'')+'><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
     });
     html += '</div>';
     html += '<div class="blank-group-label">Blank (ii)</div><div class="options" data-blank="1">';
     q.blanks[1].options.forEach(function(opt,i){
-      html += '<button class="opt" data-blank="1" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+      var cls = 'opt';
+      if(st.checked){
+        if(i === q.blanks[1].correct) cls += ' correct';
+        else if(i === st.selB) cls += ' incorrect';
+      } else if(i === st.selB){ cls += ' selected'; }
+      html += '<button class="'+cls+'" data-blank="1" data-i="'+i+'"'+(st.checked?' disabled':'')+'><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
     });
-    html += '</div><div id="explainArea"></div>';
-    html += actionsHTML();
+    html += '</div><div id="explainArea">'+(st.checked ? explainHTML(st.correct, q.explain, q.glossary) : '')+'</div>';
     return html;
   }
 
-  function renderSE(q){
+  function renderSE(q, st){
     var letters = ['A','B','C','D','E','F'];
     var html = '<div class="prompt">'+esc(q.prompt).replace('___','<span class="blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>')+'</div>';
     html += '<div class="se-hint">Select the two answers that best complete the sentence with equivalent meaning.</div>';
     html += '<div class="options" id="optGroup">';
     q.options.forEach(function(opt,i){
-      html += '<button class="opt" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+      var cls = 'opt';
+      var isCorrectOpt = q.correct.indexOf(i) >= 0;
+      var wasSelected = st.selSet.indexOf(i) >= 0;
+      if(st.checked){
+        if(isCorrectOpt) cls += ' correct';
+        else if(wasSelected) cls += ' incorrect';
+      } else if(wasSelected){ cls += ' selected'; }
+      html += '<button class="'+cls+'" data-i="'+i+'"'+(st.checked?' disabled':'')+'><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
     });
-    html += '</div><div id="explainArea"></div>';
-    html += actionsHTML();
+    html += '</div><div id="explainArea">'+(st.checked ? explainHTML(st.correct, q.explain, q.glossary) : '')+'</div>';
     return html;
   }
 
-  function renderRC(q){
+  function renderRC(q, st){
     var letters = ['A','B','C','D','E'];
     var html = '<div class="passage">'+esc(q.passage)+'</div>';
     html += '<div class="question-line">'+esc(q.question)+'</div>';
     html += '<div class="options" id="optGroup">';
     q.options.forEach(function(opt,i){
-      html += '<button class="opt" data-i="'+i+'"><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
+      var cls = 'opt';
+      if(st.checked){
+        if(i === q.correct) cls += ' correct';
+        else if(i === st.sel) cls += ' incorrect';
+      } else if(i === st.sel){ cls += ' selected'; }
+      html += '<button class="'+cls+'" data-i="'+i+'"'+(st.checked?' disabled':'')+'><span class="k mono">'+letters[i]+'</span><span>'+esc(opt)+'</span></button>';
     });
-    html += '</div><div id="explainArea"></div>';
-    html += actionsHTML();
+    html += '</div><div id="explainArea">'+(st.checked ? explainHTML(st.correct, q.explain, null) : '')+'</div>';
     return html;
   }
 
-  function actionsHTML(){
-    return '<div class="actions"><button class="ghost" id="checkBtn" disabled>Check</button>' +
-      '<button class="primary" id="nextBtn" disabled>Next</button></div>';
+  function navActionsHTML(){
+    return '<div class="actions">' +
+      '<button class="ghost" id="backBtn"'+(idx===0?' disabled':'')+'>Back</button>' +
+      '<button class="ghost" id="checkBtn" disabled>Check</button>' +
+      '<button class="primary" id="nextBtn"'+(idx===items.length-1?' disabled':'')+'>Next</button>' +
+    '</div>';
   }
 
-  function wireItem(it){
+  function wireItem(it, st){
     var checkBtn = document.getElementById('checkBtn');
+    var backBtn = document.getElementById('backBtn');
     var nextBtn = document.getElementById('nextBtn');
-    var checked = false;
+    var reviewBtn = document.getElementById('reviewBtn');
 
-    if(it.type === 'tc' || it.type === 'rc'){
-      var sel = null;
-      var opts = appEl.querySelectorAll('#optGroup .opt');
-      opts.forEach(function(btn){
-        btn.addEventListener('click', function(){
-          if(checked) return;
-          opts.forEach(function(b){ b.classList.remove('selected'); });
-          btn.classList.add('selected');
-          sel = parseInt(btn.getAttribute('data-i'),10);
-          checkBtn.disabled = false;
-        });
-      });
-      checkBtn.addEventListener('click', function(){
-        if(sel===null || checked) return;
-        checked = true;
-        var correct = sel === it.data.correct;
+    backBtn.addEventListener('click', function(){ goTo(idx - 1); });
+    nextBtn.addEventListener('click', function(){ goTo(idx + 1); });
+    reviewBtn.addEventListener('click', function(){ screen = 'review'; render(); });
+
+    checkBtn.disabled = st.checked || !isComplete(it, st);
+
+    function gradeAndShow(){
+      st.checked = true;
+      var area = document.getElementById('explainArea');
+      if(it.type === 'tc' || it.type === 'rc'){
+        var correct = st.sel === it.data.correct;
+        st.correct = correct;
+        var opts = appEl.querySelectorAll('#optGroup .opt');
         opts.forEach(function(btn){
           var i = parseInt(btn.getAttribute('data-i'),10);
           btn.disabled = true;
           if(i === it.data.correct) btn.classList.add('correct');
-          else if(i === sel) btn.classList.add('incorrect');
+          else if(i === st.sel) btn.classList.add('incorrect');
         });
-        showExplain(correct, it.data.explain, it.type === 'tc' ? it.data.glossary : null);
-        var missed = correct ? null : it.data.options[it.data.correct];
-        recordAnswer(correct, missed ? [missed] : []);
-        checkBtn.disabled = true;
-        nextBtn.disabled = false;
-      });
-    }
-
-    else if(it.type === 'se'){
-      var selSet = [];
-      var opts = appEl.querySelectorAll('#optGroup .opt');
-      opts.forEach(function(btn){
-        btn.addEventListener('click', function(){
-          if(checked) return;
-          var i = parseInt(btn.getAttribute('data-i'),10);
-          var pos = selSet.indexOf(i);
-          if(pos >= 0){ selSet.splice(pos,1); btn.classList.remove('selected'); }
-          else {
-            if(selSet.length >= 2) return;
-            selSet.push(i); btn.classList.add('selected');
-          }
-          checkBtn.disabled = selSet.length !== 2;
-        });
-      });
-      checkBtn.addEventListener('click', function(){
-        if(selSet.length !== 2 || checked) return;
-        checked = true;
-        var sorted = selSet.slice().sort();
+        area.innerHTML = explainHTML(correct, it.data.explain, it.type==='tc' ? it.data.glossary : null);
+      } else if(it.type === 'se'){
+        var sorted = st.selSet.slice().sort();
         var correctPair = it.data.correct.slice().sort();
-        var correct = sorted[0]===correctPair[0] && sorted[1]===correctPair[1];
-        opts.forEach(function(btn){
+        var correct2 = sorted.length===2 && sorted[0]===correctPair[0] && sorted[1]===correctPair[1];
+        st.correct = correct2;
+        var opts2 = appEl.querySelectorAll('#optGroup .opt');
+        opts2.forEach(function(btn){
           var i = parseInt(btn.getAttribute('data-i'),10);
           btn.disabled = true;
           var isCorrectOpt = it.data.correct.indexOf(i) >= 0;
-          var wasSelected = selSet.indexOf(i) >= 0;
+          var wasSelected = st.selSet.indexOf(i) >= 0;
           if(isCorrectOpt) btn.classList.add('correct');
           else if(wasSelected) btn.classList.add('incorrect');
         });
-        showExplain(correct, it.data.explain, it.data.glossary);
-        var missedWords = correct ? [] : it.data.correct.map(function(i){ return it.data.options[i]; });
-        recordAnswer(correct, missedWords);
-        checkBtn.disabled = true;
-        nextBtn.disabled = false;
-      });
-    }
-
-    else if(it.type === 'tc2'){
-      var selA = null, selB = null;
-      var groupA = appEl.querySelectorAll('.options[data-blank="0"] .opt');
-      var groupB = appEl.querySelectorAll('.options[data-blank="1"] .opt');
-      groupA.forEach(function(btn){
-        btn.addEventListener('click', function(){
-          if(checked) return;
-          groupA.forEach(function(b){ b.classList.remove('selected'); });
-          btn.classList.add('selected');
-          selA = parseInt(btn.getAttribute('data-i'),10);
-          checkBtn.disabled = !(selA!==null && selB!==null);
-        });
-      });
-      groupB.forEach(function(btn){
-        btn.addEventListener('click', function(){
-          if(checked) return;
-          groupB.forEach(function(b){ b.classList.remove('selected'); });
-          btn.classList.add('selected');
-          selB = parseInt(btn.getAttribute('data-i'),10);
-          checkBtn.disabled = !(selA!==null && selB!==null);
-        });
-      });
-      checkBtn.addEventListener('click', function(){
-        if(selA===null || selB===null || checked) return;
-        checked = true;
-        var aCorrect = selA === it.data.blanks[0].correct;
-        var bCorrect = selB === it.data.blanks[1].correct;
-        var correct = aCorrect && bCorrect;
+        area.innerHTML = explainHTML(correct2, it.data.explain, it.data.glossary);
+      } else if(it.type === 'tc2'){
+        var aCorrect = st.selA === it.data.blanks[0].correct;
+        var bCorrect = st.selB === it.data.blanks[1].correct;
+        var correct3 = aCorrect && bCorrect;
+        st.correct = correct3;
+        var groupA = appEl.querySelectorAll('.options[data-blank="0"] .opt');
+        var groupB = appEl.querySelectorAll('.options[data-blank="1"] .opt');
         groupA.forEach(function(btn){
           var i = parseInt(btn.getAttribute('data-i'),10);
           btn.disabled = true;
           if(i === it.data.blanks[0].correct) btn.classList.add('correct');
-          else if(i === selA) btn.classList.add('incorrect');
+          else if(i === st.selA) btn.classList.add('incorrect');
         });
         groupB.forEach(function(btn){
           var i = parseInt(btn.getAttribute('data-i'),10);
           btn.disabled = true;
           if(i === it.data.blanks[1].correct) btn.classList.add('correct');
-          else if(i === selB) btn.classList.add('incorrect');
+          else if(i === st.selB) btn.classList.add('incorrect');
         });
-        showExplain(correct, it.data.explain, it.data.glossary);
-        var missedWords = [];
-        if(!aCorrect) missedWords.push(it.data.blanks[0].options[it.data.blanks[0].correct]);
-        if(!bCorrect) missedWords.push(it.data.blanks[1].options[it.data.blanks[1].correct]);
-        recordAnswer(correct, missedWords);
-        checkBtn.disabled = true;
-        nextBtn.disabled = false;
+        area.innerHTML = explainHTML(correct3, it.data.explain, it.data.glossary);
+      }
+      checkBtn.disabled = true;
+      renderProgress();
+    }
+
+    if(it.type === 'tc' || it.type === 'rc'){
+      var opts = appEl.querySelectorAll('#optGroup .opt');
+      opts.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(st.checked) return;
+          opts.forEach(function(b){ b.classList.remove('selected'); });
+          btn.classList.add('selected');
+          st.sel = parseInt(btn.getAttribute('data-i'),10);
+          checkBtn.disabled = false;
+          renderProgress();
+        });
+      });
+      checkBtn.addEventListener('click', function(){
+        if(st.sel===null || st.checked) return;
+        gradeAndShow();
       });
     }
 
-    nextBtn.addEventListener('click', function(){
-      idx++;
-      if(idx >= items.length){ finishSession(); }
-      else { render(); }
+    else if(it.type === 'se'){
+      var opts3 = appEl.querySelectorAll('#optGroup .opt');
+      opts3.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(st.checked) return;
+          var i = parseInt(btn.getAttribute('data-i'),10);
+          var pos = st.selSet.indexOf(i);
+          if(pos >= 0){ st.selSet.splice(pos,1); btn.classList.remove('selected'); }
+          else {
+            if(st.selSet.length >= 2) return;
+            st.selSet.push(i); btn.classList.add('selected');
+          }
+          checkBtn.disabled = st.selSet.length !== 2;
+          renderProgress();
+        });
+      });
+      checkBtn.addEventListener('click', function(){
+        if(st.selSet.length !== 2 || st.checked) return;
+        gradeAndShow();
+      });
+    }
+
+    else if(it.type === 'tc2'){
+      var groupA = appEl.querySelectorAll('.options[data-blank="0"] .opt');
+      var groupB = appEl.querySelectorAll('.options[data-blank="1"] .opt');
+      groupA.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(st.checked) return;
+          groupA.forEach(function(b){ b.classList.remove('selected'); });
+          btn.classList.add('selected');
+          st.selA = parseInt(btn.getAttribute('data-i'),10);
+          checkBtn.disabled = !(st.selA!==null && st.selB!==null);
+          renderProgress();
+        });
+      });
+      groupB.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(st.checked) return;
+          groupB.forEach(function(b){ b.classList.remove('selected'); });
+          btn.classList.add('selected');
+          st.selB = parseInt(btn.getAttribute('data-i'),10);
+          checkBtn.disabled = !(st.selA!==null && st.selB!==null);
+          renderProgress();
+        });
+      });
+      checkBtn.addEventListener('click', function(){
+        if(st.selA===null || st.selB===null || st.checked) return;
+        gradeAndShow();
+      });
+    }
+  }
+
+  /* ============ REVIEW SCREEN ============ */
+  function renderReview(){
+    var checkedCount = itemState.filter(function(st){ return st.checked; }).length;
+    var answeredCount = items.filter(function(it,i){ return isComplete(it, itemState[i]); }).length;
+    var html = '<div class="card">';
+    html += '<div class="review-head"><h2 style="font-size:1.25rem;margin:0;">Review your answers</h2>' +
+      '<button class="ghost" id="backToQuizBtn">Back to question</button></div>';
+    html += '<div class="review-legend">' +
+      '<span><span class="legend-dot" style="background:var(--good)"></span>Checked &middot; correct</span>' +
+      '<span><span class="legend-dot" style="background:var(--bad)"></span>Checked &middot; incorrect</span>' +
+      '<span><span class="legend-dot" style="background:var(--accent)"></span>Answered, not checked</span>' +
+      '<span><span class="legend-dot" style="background:var(--line)"></span>Unanswered</span>' +
+    '</div>';
+    html += '<div class="review-grid">';
+    items.forEach(function(it, i){
+      var st = itemState[i];
+      var cls = 'review-chip';
+      if(st.checked) cls += st.correct ? ' done' : ' miss';
+      else if(hasSelection(it, st)) cls += ' touched';
+      if(i === idx) cls += ' current';
+      html += '<button class="'+cls+'" data-i="'+i+'"><span class="rc-type">'+shortTypeLabel(it.type)+'</span><span>'+(i+1)+'</span></button>';
+    });
+    html += '</div>';
+    html += '<p class="empty-note" style="margin-bottom:16px;">'+answeredCount+' / '+items.length+' questions answered ('+checkedCount+' checked).'+(answeredCount<items.length ? ' Anything left completely blank counts as incorrect — answers you’ve picked are graded whether or not you checked them.' : '')+'</p>';
+    html += '<button class="primary start-btn" id="finishBtn">Finish &amp; see results</button>';
+    html += '</div>';
+    appEl.innerHTML = html;
+    progressRow.hidden = true;
+    document.getElementById('backToQuizBtn').addEventListener('click', function(){ screen = 'quiz'; render(); });
+    document.getElementById('finishBtn').addEventListener('click', function(){ finishSession(); });
+    appEl.querySelectorAll('.review-chip').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        idx = parseInt(btn.getAttribute('data-i'),10);
+        screen = 'quiz';
+        render();
+      });
     });
   }
 
@@ -633,35 +785,37 @@
     return html;
   }
 
-  function showExplain(correct, explainHtml, glossary){
-    var area = document.getElementById('explainArea');
-    area.innerHTML = '<div class="explain"><div class="verdict '+(correct?'good':'bad')+'">'+(correct?'Correct.':'Not quite.')+'</div>'+explainHtml+glossaryHTML(glossary)+'</div>';
-  }
-
-  function recordAnswer(correct, missedWords){
-    answered.push({correct:correct, missedWords:missedWords});
-    renderProgress();
-  }
-
   /* ============ SUMMARY SCREEN ============ */
   function finishSession(){
     stopTimer();
     screen = 'summary';
 
-    var correctCount = answered.filter(function(a){return a.correct;}).length;
     var tcCount = items.filter(function(it){return it.type==='tc'||it.type==='tc2';}).length;
     var seCount = items.filter(function(it){return it.type==='se';}).length;
     var rcCount = items.filter(function(it){return it.type==='rc';}).length;
-    var tcCorrect = 0, seCorrect = 0, rcCorrect = 0;
-    items.forEach(function(it,i){
-      if(!answered[i]) return;
-      if((it.type==='tc'||it.type==='tc2') && answered[i].correct) tcCorrect++;
-      if(it.type==='se' && answered[i].correct) seCorrect++;
-      if(it.type==='rc' && answered[i].correct) rcCorrect++;
-    });
-
+    var tcCorrect = 0, seCorrect = 0, rcCorrect = 0, correctCount = 0;
     var allMissed = [];
-    answered.forEach(function(a){ allMissed = allMissed.concat(a.missedWords); });
+
+    items.forEach(function(it, i){
+      var st = itemState[i];
+      var gotIt = isItemCorrect(it, st);
+      if(gotIt) correctCount++;
+      if(it.type==='tc' && gotIt) tcCorrect++;
+      if(it.type==='tc2' && gotIt) tcCorrect++;
+      if(it.type==='se' && gotIt) seCorrect++;
+      if(it.type==='rc' && gotIt) rcCorrect++;
+
+      if(it.type === 'tc' || it.type === 'rc'){
+        if(!gotIt) allMissed.push(it.data.options[it.data.correct]);
+      } else if(it.type === 'se'){
+        if(!gotIt) allMissed = allMissed.concat(it.data.correct.map(function(ci){ return it.data.options[ci]; }));
+      } else if(it.type === 'tc2'){
+        var aOk = st.selA === it.data.blanks[0].correct;
+        var bOk = st.selB === it.data.blanks[1].correct;
+        if(!aOk) allMissed.push(it.data.blanks[0].options[it.data.blanks[0].correct]);
+        if(!bOk) allMissed.push(it.data.blanks[1].options[it.data.blanks[1].correct]);
+      }
+    });
 
     // update persistent state only for a genuine new-day completion
     if(!alreadyDoneToday){
@@ -713,12 +867,12 @@
   function render(){
     if(screen === 'start') renderStart();
     else if(screen === 'quiz') renderQuiz();
+    else if(screen === 'review') renderReview();
     else if(screen === 'summary') { /* built directly by finishSession */ }
   }
 
   render();
 })();
 </script>
-
-
 </body></html>
+
