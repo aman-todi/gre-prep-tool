@@ -1,6 +1,6 @@
 ---
 name: gre-prep-setup
-description: One-time bootstrap for a self-updating daily GRE Verbal practice tool built on Supabase and a Claude Artifact. Creates the schema, generates a vocabulary bank, publishes the practice page with a real Day 1 and creates the daily routine that regenerates it. Use when asked to set up, install or replicate the GRE prep tool.
+description: One-time bootstrap for a self-updating daily GRE Verbal practice tool built on Supabase and a Claude Artifact. Creates the schema, loads the bundled 1,000-word vocabulary bank, publishes the practice page with a real Day 1 and creates the daily routine that regenerates it. Use when asked to set up, install or replicate the GRE prep tool.
 ---
 
 # GRE Verbal Reps: one-time setup
@@ -49,9 +49,13 @@ create table if not exists config (
   key   text primary key,
   value text not null
 );
+
+alter table words enable row level security;
+alter table daily_sessions enable row level security;
+alter table config enable row level security;
 ```
 
-RLS stays off on purpose. Only Claude touches the database, through MCP, and the page has no Supabase client. Mention this once and don't enable it.
+RLS is on with no policies, so the public API keys can't read or write anything. Claude reaches the database through the Supabase connector, which isn't affected, and the page has no Supabase client. Don't add policies.
 
 ## 3. Config
 
@@ -63,7 +67,7 @@ insert into config (key, value) values
   ('items_per_day', '16'),
   ('new_words_min_per_day', '10'),
   ('questions_per_passage_max', '3'),
-  ('questions_per_passage_min', '1'),
+  ('questions_per_passage_min', '3'),
   ('rc_passages_per_day', '2'),
   ('target_format', 'Current (post-Sept 2023 shortened) GRE General Test, Verbal Reasoning section'),
   ('word_bank_size', 'PENDING')
@@ -74,11 +78,11 @@ These are defaults, so don't ask the person about them.
 
 ## 4. Vocabulary bank
 
-Generate at least 500-600 GRE-register words from your own knowledge, more if you can. Split them roughly 55% tier 1, 35% tier 2 and 10% tier 3. Leave out any word whose definition or part of speech you're unsure of. Insert a few hundred rows per call:
+The bank is the 1,000 words in [`words.csv`](./words.csv) (columns `word,pos,tier,definition`; 683 tier 1, 243 tier 2, 74 tier 3). It is the only word source: don't generate, add or drop words. Read the file, then insert it in batches of about 250 rows per call, escaping single quotes by doubling them:
 
 ```sql
-insert into words (word, pos, definition, tier) values
-  ('abate', 'v', 'to lessen in intensity', 1), ...
+insert into words (word, pos, tier, definition) values
+  ('abstain', 'v', 1, 'to deliberately avoid doing something'), ...
 on conflict (word) do nothing;
 
 update config set value = (select count(*)::text from words) where key = 'word_bank_size';
@@ -86,7 +90,7 @@ update config set value = (select count(*)::text from words) where key = 'word_b
 
 ## 5. Day 1
 
-Write a real first set, not a placeholder. Follow step 3 of [`daily-prompt-template.md`](./daily-prompt-template.md): the item mix, glossaries, explanations, randomized answer positions and the self-check. Lean on tier 1 words for Day 1.
+Write a real first set, not a placeholder. Follow step 3 of [`daily-prompt-template.md`](./daily-prompt-template.md): the item mix, distractor rules, glossaries, explanations, randomized answer positions and the self-check. Draw the Day 1 words from `words`, leaning on tier 1.
 
 Publish [`artifact-template.html`](./artifact-template.html) as a new Artifact. Change only its `DAY` object, using the shape in step 4 of the prompt template, and check that the script parses before publishing. Call the resulting URL `ARTIFACT_URL`.
 
@@ -103,11 +107,9 @@ insert into daily_sessions (session_date, day_number, passage_topics, vocab_word
 values (current_date, 1, array[<topics>], array[<words>], <question count>, 'initial setup run');
 ```
 
-## 7. Ask for a time
+## 7. Create the routine
 
-Ask what time the set should be ready each day. Default to 6:00 AM in the person's timezone.
-
-## 8. Create the routine
+Ask what time the set should be ready each day (default 6:00 AM in the person's timezone), then create it.
 
 - Name: "GRE Verbal Daily Set"
 - Schedule: daily at the chosen time
@@ -115,10 +117,10 @@ Ask what time the set should be ready each day. Default to 6:00 AM in the person
 - Connectors: Supabase must be attached. Any others are irrelevant.
 - Prompt: [`daily-prompt-template.md`](./daily-prompt-template.md), with `<NAME>`, `ARTIFACT_URL` and `PROJECT_ID` filled in
 
-## 9. Report back
+## 8. Report back
 
 Tell the person:
 - the artifact link to bookmark
-- the word count by tier
+- the word count by tier (1,000 words: 683 / 243 / 74)
 - the routine's name and time
 - that `config` holds every setting and can be edited any time

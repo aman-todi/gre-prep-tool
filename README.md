@@ -10,7 +10,7 @@ setup skill (once) ──► Supabase: words · daily_sessions · config
 ```
 
 - **Supabase** holds three tables:
-  - `words`: the bank, with tiers and how often each word has been covered
+  - `words`: the 1,000-word bank ([`words.csv`](./skills/gre-prep-setup/words.csv): word, part of speech, tier and definition), plus how often each word has been covered
   - `daily_sessions`: one row per day, used so passage topics and words don't repeat
   - `config`: item counts, coverage goal and the page URL
 - **The page** is one HTML file whose content lives in a `var DAY = {...}` object. Each item gets an explanation and a glossary of the hard answer-choice words. You can move freely between questions with Back/Next and the progress dots, and a review screen shows each item's status before you finish. Streaks are stored in the browser.
@@ -23,9 +23,7 @@ See [docs/setup.md](./docs/setup.md). You create a free Supabase project, connec
 ## Customizing
 
 - **Counts and coverage:** edit `config`.
-- **Vocabulary:** edit `words`, or ask Claude to add words.
+- **Vocabulary:** the bank is the 1,000 words in [`words.csv`](./skills/gre-prep-setup/words.csv), tiered 1 (core, 683), 2 (common, 243) and 3 (advanced, 74). To change it, edit `words` in Supabase.
 - **Look and feel:** edit the page's HTML and CSS. The routine only replaces `DAY`, so your changes survive.
 
-RLS is off on purpose. Only Claude, connected through your Supabase connector, ever touches the database. Turn RLS on and add policies before you query the database from a browser.
-
-[Changelog](./docs/changelog.md)
+RLS is on with no policies, so the database is closed to the public API keys. Only Claude, connected through your Supabase connector, touches it. Add policies before you query it from a browser.
